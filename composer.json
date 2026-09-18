@@ -1,33 +1,45 @@
 {
-    "name": "gpio/common",
-    "description": "The GeneralPurposeIO Common package.",
+    "name": "gpio/nuts-and-bolts",
+    "description": "GeneralPurposeIO byte helpers: array2bytes, bytes2array, byte2bits, bits2byte.",
+    "type": "library",
+    "keywords": [
+        "scrapyard-io",
+        "gpio",
+        "bytes"
+    ],
     "license": "MIT",
+    "homepage": "https://scrapyard-io.projectsaturnstudios.com/ecosystem/scrapyard-io/framework/0.8.x/overview",
+    "support": {
+        "docs": "https://scrapyard-io.projectsaturnstudios.com/ecosystem/scrapyard-io/framework/0.8.x/overview",
+        "source": "https://github.com/scrapyard-io/framework",
+        "issues": "https://github.com/scrapyard-io/framework/issues"
+    },
     "authors": [
         {
             "name": "Angel Gonzalez",
             "email": "angel@projectsaturnstudios.com"
         }
     ],
-    "homepage": "https://scrapyard-io.projectsaturnstudios.com",
-    "support": {
-        "issues": "https://github.com/ScrapyardIO/framework/issues",
-        "source": "https://github.com/ScrapyardIO/framework"
-    },
     "require": {
-        "php": "^8.3"
+        "php": "^8.4|^8.5|^8.6",
+        "gpio/contracts": "^0.8.0"
     },
-    "minimum-stability": "dev",
     "autoload": {
         "psr-4": {
-            "GeneralPurposeIO\\Contracts\\": ""
+            "GeneralPurposeIO\\NutsAndBolts\\": ""
+        },
+        "files": [
+            "Helpers/bytes.php"
+        ]
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-main": "0.8.x-dev"
         }
     },
     "config": {
         "sort-packages": true
     },
-    "extra": {
-        "branch-alias": {
-            "dev-master": "0.6.x-dev"
-        }
-    }
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
