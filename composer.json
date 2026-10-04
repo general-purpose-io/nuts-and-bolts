@@ -1,6 +1,6 @@
 {
     "name": "gpio/nuts-and-bolts",
-    "description": "GeneralPurposeIO byte helpers: array2bytes, bytes2array, byte2bits, bits2byte.",
+    "description": "GeneralPurposeIO shared machinery: the transport base, per-slave job queues and via() offloading, and the byte helpers array2bytes, bytes2array, byte2bits, bits2byte.",
     "type": "library",
     "keywords": [
         "scrapyard-io",
@@ -22,9 +22,8 @@
     ],
     "require": {
         "php": "^8.4|^8.5|^8.6",
-        "gpio/contracts": "^0.9.0",
-        "venusian-voyager/contracts": "^0.9.0",
-        "venusian-voyager/io-pools": "^0.9.0"
+        "gpio/contracts": "^0.10.0",
+        "venusian-voyager/contracts": "^0.10.0"
     },
     "autoload": {
         "psr-4": {

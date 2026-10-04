@@ -6,14 +6,13 @@ use Closure;
 use Throwable;
 use Voyager\Contracts\IOPools\Loop;
 use Voyager\Contracts\IOPools\Promise;
-use Voyager\Contracts\IOPools\ShouldPool;
-use Voyager\Contracts\IOPools\WorkTarget;
-use Voyager\IOPools\WorkTargets\QueueTarget;
+use Voyager\Contracts\IOPools\WorkerPools\ShouldPool;
+use Voyager\Contracts\IOPools\WorkerPools\WorkerPool;
 use GeneralPurposeIO\Contracts\Core\GPIOLevelException;
 use GeneralPurposeIO\Contracts\NutsAndBolts\BusJob;
 
 /**
- * What a protocol driver needs for via(): the event loop and work targets the manager hands it, and one BusQueue per
+ * What a protocol driver needs for via(): the event loop and worker pools the manager hands it, and one BusQueue per
  * queueKey(). An owner names a slave on its bus: an I2C address, an SPI chip select.
  */
 trait OffloadsBusJobs
@@ -23,7 +22,7 @@ trait OffloadsBusJobs
 
     private ?Closure $loop_resolver = null;
 
-    private ?Closure $target_resolver = null;
+    private ?Closure $pool_resolver = null;
 
     /** @return class-string<GPIOLevelException> the protocol's exception, so a refusal names the protocol */
     abstract protected function protocolException(): string;
@@ -35,7 +34,7 @@ trait OffloadsBusJobs
     abstract protected function queueKey(string|int $device, int $owner): string;
 
     /** Starts one job wherever it runs, and hands back its promise. */
-    abstract protected function dispatch(string|int $device, int $owner, BusJob $job, ?string $target, Loop $loop, BusQueue $queue): Promise;
+    abstract protected function dispatch(string|int $device, int $owner, BusJob $job, ?string $pool, Loop $loop, BusQueue $queue): Promise;
 
     /** Wire-internal: the manager hands every driver the closure that finds the event loop, or null. */
     public function resolvesLoopWith(Closure $resolver): static
@@ -45,21 +44,21 @@ trait OffloadsBusJobs
         return $this;
     }
 
-    /** Wire-internal: the manager hands every driver the closure that turns a target name (or null) into a WorkTarget. */
-    public function resolvesTargetsWith(Closure $resolver): static
+    /** Wire-internal: the manager hands every driver the closure that turns a pool name ('thread', 'process', or null) into a WorkerPool. */
+    public function resolvesPoolsWith(Closure $resolver): static
     {
-        $this->target_resolver = $resolver;
+        $this->pool_resolver = $resolver;
 
         return $this;
     }
 
     /** Queue $job for one slave; it starts once every earlier job on the same queue has settled. */
-    public function offload(string|int $device, int $owner, BusJob $job, ?string $target = null): Promise
+    public function offload(string|int $device, int $owner, BusJob $job, ?string $pool = null): Promise
     {
         $loop = $this->eventLoop() ?? throw ($this->protocolException())::noEventLoop();
         $queue = $this->queues[$this->queueKey($device, $owner)] ??= new BusQueue($loop);
 
-        return $queue->push($owner, fn (): Promise => $this->dispatch($device, $owner, $job, $target, $loop, $queue));
+        return $queue->push($owner, fn (): Promise => $this->dispatch($device, $owner, $job, $pool, $loop, $queue));
     }
 
     /** Blocking calls wait here for the jobs queued on the slave's queue before them. */
@@ -107,20 +106,15 @@ trait OffloadsBusJobs
         return is_null($loop) ? null : $this->queues[$key] = new BusQueue($loop);
     }
 
-    /** Sends $gig to the named work target, or to the configured one. A worker's exception comes back as the one it was. */
-    protected function runGig(ShouldPool $gig, ?string $target): Promise
+    /** Sends $gig to the named worker pool, or to the default one. A worker's exception comes back as the one it was. */
+    protected function runGig(ShouldPool $gig, ?string $pool): Promise
     {
-        $targets = $this->target_resolver ?? throw ($this->protocolException())::noWorkTargets();
+        $pools = $this->pool_resolver ?? throw ($this->protocolException())::noWorkerPools();
 
-        /** @var WorkTarget $work */
-        $work = $targets($target);
+        /** @var WorkerPool $workers */
+        $workers = $pools($pool);
 
-        // a queue target resolves with the queued job, so the promise could never mirror the blocking call
-        if ($work instanceof QueueTarget) {
-            throw ($this->protocolException())::offloadTargetDiscardsResult($target ?? 'default');
-        }
-
-        return $work->run($gig)->error(fn (Throwable $e) => throw GPIOLevelException::localize($e));
+        return $workers->submit($gig)->error(fn (Throwable $e) => throw GPIOLevelException::localize($e));
     }
 
     protected function eventLoop(): ?Loop
